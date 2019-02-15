@@ -1,10 +1,10 @@
 import org.apache.spark.ml.evaluation.RegressionEvaluator
-import org.apache.spark.ml.classification.RandomForestClassifier //check this
+import org.apache.spark.ml.classification.RandomForestClassifier
 import org.apache.spark.ml.tuning.{ParamGridBuilder, TrainValidationSplit}
-
+import org.apache.spark.ml.feature.{VectorAssembler, StringIndexer, OneHotEncoderEstimator}
+import org.apache.spark.ml.linalg.Vectors
 import org.apache.log4j._
 Logger.getLogger("org").setLevel(Level.ERROR)
-
 
 // Start a simple Spark Session
 import org.apache.spark.sql.SparkSession
@@ -14,36 +14,37 @@ val spark = SparkSession.builder().getOrCreate()
 val data = spark.read.option("header","true").
     option("inferSchema","true").
     format("csv").
-    load("/Users/jeremymiller/GoogleDrive/Data_Science/Projects/Education_Data/harvard_ed_x/data/X_train.csv")
-
-/*
-data.printSchema()
-
-// See an example of what the data looks like
-val colnames = data.columns
-val firstrow = data.head(1)(0)
-println("\n")
-println("Example Data Row")
-for(ind <- Range(1,colnames.length)){
-  println(colnames(ind))
-  println(firstrow(ind))
-  println("\n")
-}
+    load("/Users/jeremymiller/GoogleDrive/Data_Science/Projects/Education_Data/harvard_ed_x/data/mooc.csv")
 
 ////////////////////////////////////////////////////
 //// Setting Up DataFrame for Machine Learning ////
 //////////////////////////////////////////////////
 
-import org.apache.spark.ml.feature.VectorAssembler
-import org.apache.spark.ml.linalg.Vectors
+// Rename label column, keep appropriate columns
+val df = data.select(data("certified").as("label"), $"registered", $"viewed", $"explored", $"final_cc_cname_DI", $"gender", $"nevents", $"ndays_act", $"nplay_video", $"nchapters", $"nforum_posts")
 
-// Rename label column
-// Grab only numerical columns
-val df = data.select(data("Price").as("label"),$"Avg Area Income",$"Avg Area House Age",$"Avg Area Number of Rooms",$"Area Population")
+// string indexing
+val indexer1 = new StringIndexer().
+    setInputCol("final_cc_cname_DI").
+    setOutputCol("countryIndex")
+val indexed1 = indexer.fit(data).transform(data)
 
-// An assembler converts the input values to a vector
-// A vector is what the ML algorithm reads to train a model
+val indexer2 = new StringIndexer().
+    setInputCol("gender").
+    setOutputCol("genderIndex")
+val indexed2 = indexer2.fit(indexed1).transform(indexed1)
 
+// one hot encoding
+val encoder = new OneHotEncoderEstimator().
+  setInputCols(Array("countryIndex", "genderIndex")).
+  setOutputCols(Array("countryVec", "genderVec"))
+val encoded = encoder.fit(indexed2).transform(indexed2)
+
+// filter out null columns
+val dropped1 = encoded.filter("YoB != 'NA'")
+val dropped1 = encoded.filter("YoB != 'NA'")
+
+/*
 // Set the input columns from which we are supposed to read the values
 // Set the name of the column where the vector will be stored
 val assembler = new VectorAssembler().setInputCols(Array("Avg Area Income","Avg Area House Age","Avg Area Number of Rooms","Area Population")).setOutputCol("features")
@@ -51,19 +52,18 @@ val assembler = new VectorAssembler().setInputCols(Array("Avg Area Income","Avg 
 // Transform the DataFrame
 val output = assembler.transform(df).select($"label",$"features")
 
-
 // Create an array of the training and test data
 val Array(training, test) = output.select("label","features").randomSplit(Array(0.7, 0.3), seed = 12345)
 
 //////////////////////////////////////
-//////// LINEAR REGRESSION //////////
+//////// Random Forest Classifier //////////
 ////////////////////////////////////
-val lr = new LinearRegression()
+val rf = new RandomForestClassifier()
 
 //////////////////////////////////////
 /// PARAMETER GRID BUILDER //////////
 ////////////////////////////////////
-val paramGrid = new ParamGridBuilder().addGrid(lr.regParam,Array(1000,0.001)).build()
+val paramGrid = new ParamGridBuilder().addGrid().build()
 
 ///////////////////////
 // TRAIN TEST SPLIT //
