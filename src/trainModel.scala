@@ -16,9 +16,9 @@ val data = spark.read.option("header","true").
     format("csv").
     load("/Users/jeremymiller/GoogleDrive/Data_Science/Projects/Education_Data/harvard_ed_x/data/mooc.csv")
 
-////////////////////////////////////////////////////
+///////////////////////////////////////////////////
 //// Setting Up DataFrame for Machine Learning ////
-//////////////////////////////////////////////////
+///////////////////////////////////////////////////
 
 // Rename label column, keep appropriate columns
 val df = data.select(data("certified").as("label"), $"registered", $"viewed", $"explored", $"final_cc_cname_DI", $"gender", $"nevents", $"ndays_act", $"nplay_video", $"nchapters", $"nforum_posts")
@@ -27,7 +27,7 @@ val df = data.select(data("certified").as("label"), $"registered", $"viewed", $"
 val indexer1 = new StringIndexer().
     setInputCol("final_cc_cname_DI").
     setOutputCol("countryIndex")
-val indexed1 = indexer.fit(data).transform(data)
+val indexed1 = indexer1.fit(data).transform(data)
 
 val indexer2 = new StringIndexer().
     setInputCol("gender").
@@ -42,7 +42,10 @@ val encoded = encoder.fit(indexed2).transform(indexed2)
 
 // filter out null columns
 val dropped1 = encoded.filter("YoB != 'NA'")
-val dropped1 = encoded.filter("YoB != 'NA'")
+
+// check null values for :
+//last_event_DI, nevents, ndays_act, nplay_video, nchapters, nforum_posts,
+
 
 /*
 // Set the input columns from which we are supposed to read the values
