@@ -11,6 +11,8 @@ Logger.getLogger("org").setLevel(Level.ERROR)
 
 // Start a simple Spark Session
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.Column
 val spark = SparkSession.builder().getOrCreate()
 
 // Prepare training and test data.
@@ -50,6 +52,13 @@ val dropped1 = encoded.filter("YoB != 'NA'")
 
 // check null values for : impute with median
 //nevents 174059, ndays_act 145178, nplay_video 395025, nchapters 224464,
+
+
+// // function to impute medians
+// def computeMedian()(df: DataFrame, col: Column): DataFrame = {
+//   val medianArray = df.stat.approxQuantile(col, Array(0.5), 0)
+//   val median = medianArray(0)
+// }
 
 // define medians
 val neventsMedianArray = dropped1.stat.approxQuantile("nevents", Array(0.5), 0)
@@ -200,3 +209,5 @@ val roc = bMetrics.roc
 // AUROC
 val auROC = bMetrics.areaUnderROC
 println("Area under ROC = " + auROC)
+
+*/
