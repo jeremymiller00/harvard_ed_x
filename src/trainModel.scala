@@ -5,6 +5,7 @@ import org.apache.spark.ml.classification.RandomForestClassifier
 import org.apache.spark.ml.tuning.{ParamGridBuilder, TrainValidationSplit, CrossValidator}
 import org.apache.spark.ml.feature.{VectorAssembler, StringIndexer, OneHotEncoderEstimator}
 import org.apache.spark.ml.linalg.Vectors
+import org.apache.spark.ml.Pipeline
 import org.apache.log4j._
 Logger.getLogger("org").setLevel(Level.ERROR)
 
