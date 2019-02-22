@@ -1,4 +1,6 @@
 import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator
+import org.apache.spark.mllib.evaluation.MulticlassMetrics
+import org.apache.spark.mllib.evaluation.BinaryClassificationMetrics
 import org.apache.spark.ml.classification.RandomForestClassifier
 import org.apache.spark.ml.tuning.{ParamGridBuilder, TrainValidationSplit, CrossValidator}
 import org.apache.spark.ml.feature.{VectorAssembler, StringIndexer, OneHotEncoderEstimator}
@@ -115,14 +117,85 @@ val model = cv.fit(training)
 // that performed best.
 // val predictions = model.transform(test)
 
-val testPreds = model.transform(test).select("features", "label", "prediction")
+val results = model.transform(test).select("features", "label", "prediction")
 
-val evaluator = new MulticlassClassificationEvaluator().
-  setLabelCol("label").
-  setPredictionCol("prediction").
-  setMetricName("accuracy")
+//this doesn't work because the metrics in Spark all return only the accuracy
+// val evaluator = new MulticlassClassificationEvaluator().
+//   setLabelCol("label").
+//   setPredictionCol("prediction").
+//   setMetricName("accuracy")
 
-val testRecall = evaluator.evaluate(testPreds)
+// val testRecall = evaluator.evaluate(testPreds)
 
-// Check out the metrics
-model.validationMetrics
+val predictionAndLabels = results.select($"prediction",$"label").as[(Double, Double)].rdd
+
+// Instantiate a new metrics objects
+val bMetrics = new BinaryClassificationMetrics(predictionAndLabels)
+val mMetrics = new MulticlassMetrics(predictionAndLabels)
+val labels = mMetrics.labels
+
+// Print out the Confusion matrix
+println("Confusion matrix:")
+println(mMetrics.confusionMatrix)
+
+// Precision by label
+labels.foreach { l =>
+  println(s"Precision($l) = " + mMetrics.precision(l))
+}
+
+// Recall by label
+labels.foreach { l =>
+  println(s"Recall($l) = " + mMetrics.recall(l))
+}
+
+// False positive rate by label
+labels.foreach { l =>
+  println(s"FPR($l) = " + mMetrics.falsePositiveRate(l))
+}
+
+// F-measure by label
+labels.foreach { l =>
+  println(s"F1-Score($l) = " + mMetrics.fMeasure(l))
+}
+
+
+// Precision by threshold
+val precision = bMetrics.precisionByThreshold
+precision.foreach { case (t, p) =>
+  println(s"Threshold: $t, Precision: $p")
+}
+
+// Recall by threshold
+val recall = bMetrics.recallByThreshold
+recall.foreach { case (t, r) =>
+  println(s"Threshold: $t, Recall: $r")
+}
+
+// Precision-Recall Curve
+val PRC = bMetrics.pr
+
+// F-measure
+val f1Score = bMetrics.fMeasureByThreshold
+f1Score.foreach { case (t, f) =>
+  println(s"Threshold: $t, F-score: $f, Beta = 1")
+}
+
+val beta = 0.5
+val fScore = bMetrics.fMeasureByThreshold(beta)
+f1Score.foreach { case (t, f) =>
+  println(s"Threshold: $t, F-score: $f, Beta = 0.5")
+}
+
+// AUPRC
+val auPRC = bMetrics.areaUnderPR
+println("Area under precision-recall curve = " + auPRC)
+
+// Compute thresholds used in ROC and PR curves
+val thresholds = precision.map(_._1)
+
+// ROC Curve
+val roc = bMetrics.roc
+
+// AUROC
+val auROC = bMetrics.areaUnderROC
+println("Area under ROC = " + auROC)
